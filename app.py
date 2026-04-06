@@ -32,7 +32,7 @@ f1.columns = [
 
 # GDP bubble lookup — 2023 only (from File 2 columns Entity/Year/GDP per capita)
 _gdp_bubble = (
-    f2[['Entity', 'Year', 'GDP per capita']]
+    f2[['country', 'Year', 'GDP per capita']]
     .dropna()
     .rename(columns={'Entity': 'country', 'Year': 'year', 'GDP per capita': 'gdp_per_capita'})
     .query('year == 2023')
