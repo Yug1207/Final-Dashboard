@@ -2,9 +2,7 @@
 
 An interactive dashboard that tracks how Japan's carbon emissions and energy mix changed over 35 years, and asks a harder question: how does Japan's footprint compare with the rest of the world?
 
-**Live dashboard:** https://final-dashboard-mzpb.vercel.app
-
-<!-- Add a screenshot of the dashboard here, for example: ![Dashboard preview](screenshot.png) -->
+**Live dashboard:**(https://final-dashboard-three.vercel.app/)
 
 ## What this project is
 
@@ -74,15 +72,8 @@ Final-Dashboard/
    ```
 4. Open http://localhost:8050 in your browser.
 
-## How it is deployed
 
-The app runs on Vercel as a serverless Python function. Vercel needs a WSGI object called `app`, so the bottom of `app.py` keeps the Dash object as `dash_app` and exposes its Flask server as `app`. The dataset is loaded from the same folder as `app.py` when the function starts.
 
-## Things I would improve next
-
-- Cache the processed data so cold starts are faster.
-- Add more countries to the energy mix view, not just Japan.
-- Add consumption-based emissions alongside territorial emissions, since the dataset already includes them.
 
 ## Author
 
