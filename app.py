@@ -18,7 +18,7 @@ import dash_bootstrap_components as dbc
 # CELL 3 — Load & Prepare Data  
 # ═══════════════════════════════════════════════════════════════
 import os
-FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Main_data_for_Assignment.xlsx")
+FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Main data for Assignment.xlsx")
 _raw = pd.read_excel(FILE_PATH)
  
 
