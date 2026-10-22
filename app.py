@@ -17,7 +17,7 @@ import dash_bootstrap_components as dbc
 # ═══════════════════════════════════════════════════════════════
 # CELL 3 — Load & Prepare Data  
 # ═══════════════════════════════════════════════════════════════
-FILE_PATH = pd.read_excel("Main data for Assignment.xlsx")
+FILE_PATH = "Main data for Assignment.xlsx"
 _raw = pd.read_excel(FILE_PATH)
  
 
@@ -297,7 +297,7 @@ app = Dash(__name__, external_stylesheets=[
     dbc.themes.BOOTSTRAP,
     'https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Inter:wght@300;400;500;600&display=swap'
 ])
-
+server = app.server
 app.index_string = '''
 <!DOCTYPE html>
 <html>
