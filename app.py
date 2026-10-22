@@ -14,63 +14,62 @@ import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
-
 # ═══════════════════════════════════════════════════════════════
 # CELL 3 — Load & Prepare Data  
 # ═══════════════════════════════════════════════════════════════
-import pandas as pd
+FILE_PATH = pd.read_excel("Main data for Assignment.xlsx")
+_raw = pd.read_excel(FILE_PATH)
+ 
 
-f1 = pd.read_excel("Main data file 1.xlsx")
-f2 = pd.read_excel("Main Data File 2.xlsx")
-
-# Rename File 1 columns to match what the code expects
-f1.columns = [
+# 1. Main data
+df_raw = _raw.iloc[:, :16].copy()
+df_raw.columns = [
     'country', 'year', 'co2_total', 'co2_share', 'co2_per_capita',
     'co2_consumption', 'population', 'other_renewables', 'biofuels', 'solar', 'wind',
     'hydropower', 'nuclear', 'gas', 'coal', 'oil'
 ]
-
-# GDP bubble lookup — 2023 only (from File 2 columns Entity/Year/GDP per capita)
+ 
+# 2. Bubble GDP lookup — 2023 only, for wealth-vs-emissions bubble chart
+_gdp_bubble = _raw.iloc[:, 16:19].dropna(subset=[_raw.columns[16]]).copy()
+_gdp_bubble.columns = ['country', 'year', 'gdp_per_capita']
 _gdp_bubble = (
-    f2[['country', 'year', 'GDP per capita.1']]
-    .dropna(subset=['GDP per capita.1'])
-    .rename(columns={'GDP per capita.1': 'gdp_per_capita'})
-    .query('year == 2023')
+    _gdp_bubble[_gdp_bubble['year'] == 2023]
     .set_index('country')['gdp_per_capita']
     .to_dict()
 )
-_gdp_bubble['World'] = 21000
-
-# GDP time series (from File 2 columns country/year/GDP per capita.1)
-_gdp_ts = (
-    f2[['country', 'year', 'GDP per capita.1']]
-    .dropna(subset=['GDP per capita.1'])
-    .rename(columns={'GDP per capita.1': 'gdp_per_capita'})
-    .copy()
-)
+ 
+# 3. Time-series GDP 1990-2024 — for scatter chart + merging into main df
+_gdp_ts = _raw.iloc[:, 19:22].dropna(subset=[_raw.columns[21]]).copy()
+_gdp_ts.columns = ['country', 'year', 'gdp_per_capita']
 _gdp_ts['year'] = _gdp_ts['year'].astype(int)
-
-# Merge into main df
-df = f1[f1['year'] >= 1990].copy()
+ 
+# 4. Merge time-series GDP into main df
+df = df_raw[df_raw['year'] >= 1990].copy()
 df = df.merge(_gdp_ts, on=['country', 'year'], how='left')
-
+ 
 japan = df[df['country'] == 'Japan'].reset_index(drop=True)
 india = df[df['country'] == 'India'].reset_index(drop=True)
 world = df[df['country'] == 'World'].reset_index(drop=True)
+ 
+japan['co2_mt']     = japan['co2_total'] / 1e6  # FIX: Divided by 1e6 for Million Tonnes (MtCO2)
+japan['renewables'] = (
+    japan['solar'] + japan['wind'] + japan['hydropower'] + japan['other_renewables']
+)
 
-japan['co2_mt']     = japan['co2_total'] / 1e9
-japan['renewables'] = japan['solar'] + japan['wind'] + japan['hydropower'] + japan['other_renewables']
+# FIX: Dynamically find the latest year with actual data to prevent 'nan' (Usually 2022)
+valid_year = japan.dropna(subset=['co2_total'])['year'].max()
 
-co2_2023      = japan[japan['year'] == 2023]['co2_mt'].values[0]
-pc_2023       = japan[japan['year'] == 2023]['co2_per_capita'].values[0]
+# FIX: Use 'co2_total' instead of the old column name, and convert raw tonnes to MtCO2
+co2_2023      = japan[japan['year'] == valid_year]['co2_total'].values[0] / 1e6 
+pc_2023       = japan[japan['year'] == valid_year]['co2_per_capita'].values[0]
 pc_1990       = japan[japan['year'] == 1990]['co2_per_capita'].values[0]
 pct_change    = round(((pc_2023 - pc_1990) / pc_1990) * 100, 1)
-share_2023    = japan[japan['year'] == 2023]['co2_share'].values[0]
-world_pc_2023 = world[world['year'] == 2023]['co2_per_capita'].values[0]
-india_pc_2023 = india[india['year'] == 2023]['co2_per_capita'].values[0]
+share_2023    = japan[japan['year'] == valid_year]['co2_share'].values[0]
+world_pc_2023 = world[world['year'] == valid_year]['co2_per_capita'].values[0]
+india_pc_2023 = india[india['year'] == valid_year]['co2_per_capita'].values[0]
 
 print("✅ Data loaded")
-print(f"   CO₂ 2023: {co2_2023:.1f} MtCO₂ | Per capita: {pc_2023:.2f} t | Change since 1990: {pct_change}%")
+print(f"   CO₂ {valid_year}: {co2_2023:.1f} MtCO₂ | Per capita: {pc_2023:.2f} t | Change since 1990: {pct_change}%")
  
 
 # ═══════════════════════════════════════════════════════════════
@@ -298,7 +297,7 @@ app = Dash(__name__, external_stylesheets=[
     dbc.themes.BOOTSTRAP,
     'https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Inter:wght@300;400;500;600&display=swap'
 ])
-server = app.server
+
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -522,7 +521,7 @@ justice = html.Div(id='climate-justice', style={
                     id='bubble-dropdown',
                     options=[{'label': c, 'value': c} for c in sorted(
     df[~df['country'].isin(['Japan', 'India', 'World'])]['country'].unique()
-) if c in _gdp_bubble],
+)],
                     value=[],
                     multi=True,
                     placeholder='Select countries to add...',
@@ -572,33 +571,33 @@ def update_trends(year_range):
     y0, y1 = year_range
     j = japan[(japan['year'] >= y0) & (japan['year'] <= y1)]
 
-    fig_t = go.Figure()
-    fig_t.add_trace(go.Scatter(x=j['year'], y=j['co2_mt'], mode='lines',
+    f1 = go.Figure()
+    f1.add_trace(go.Scatter(x=j['year'], y=j['co2_mt'], mode='lines',
         line=dict(color=RED, width=3), fill='tozeroy', fillcolor='rgba(217,56,30,0.08)',
         hovertemplate='<b>%{x}</b><br>%{y:.1f} MtCO₂<extra></extra>'))
     for yr, lbl in [(2011,'Fukushima'),(2016,'Paris Agmt')]:
         if y0 <= yr <= y1:
-            fig_t.add_vline(x=yr, line_dash='dash', line_color=SUBTEXT, line_width=1, opacity=0.5)
-            fig_t.add_annotation(x=yr, y=j['co2_mt'].max(), text=lbl, showarrow=False,
+            f1.add_vline(x=yr, line_dash='dash', line_color=SUBTEXT, line_width=1, opacity=0.5)
+            f1.add_annotation(x=yr, y=j['co2_mt'].max(), text=lbl, showarrow=False,
                 font=dict(color=SUBTEXT, size=10, family=FONT_BODY), xshift=5, yshift=10)
-    fig_t.update_layout(**PLOTLY_LAYOUT,
+    f1.update_layout(**PLOTLY_LAYOUT,
         title=dict(text='Total CO₂ Emissions (MtCO₂)', font=dict(color=TEXT, size=14, family=FONT_HEAD)),
         yaxis_title='MtCO₂')
 
-    fig_p = go.Figure()
-    fig_p.add_trace(go.Scatter(x=j['year'], y=j['co2_per_capita'], mode='lines',
+    f2 = go.Figure()
+    f2.add_trace(go.Scatter(x=j['year'], y=j['co2_per_capita'], mode='lines',
         line=dict(color=BLUE, width=3), fill='tozeroy', fillcolor='rgba(31,69,110,0.08)',
         hovertemplate='<b>%{x}</b><br>%{y:.2f} tCO₂/person<extra></extra>'))
     for yr, lbl in [(2011,'Fukushima'),(2016,'Paris Agmt')]:
         if y0 <= yr <= y1:
-            fig_p.add_vline(x=yr, line_dash='dash', line_color=SUBTEXT, line_width=1, opacity=0.5)
-            fig_p.add_annotation(x=yr, y=j['co2_per_capita'].max(), text=lbl, showarrow=False,
+            f2.add_vline(x=yr, line_dash='dash', line_color=SUBTEXT, line_width=1, opacity=0.5)
+            f2.add_annotation(x=yr, y=j['co2_per_capita'].max(), text=lbl, showarrow=False,
                 font=dict(color=SUBTEXT, size=10, family=FONT_BODY), xshift=5, yshift=10)
-    fig_p.update_layout(**PLOTLY_LAYOUT,
+    f2.update_layout(**PLOTLY_LAYOUT,
         title=dict(text='Per Capita CO₂ Emissions (tCO₂/person)', font=dict(color=TEXT, size=14, family=FONT_HEAD)),
         yaxis_title='tCO₂/person')
 
-    return fig_t, fig_p
+    return f1, f2
 
 
 @app.callback(
@@ -815,5 +814,15 @@ def update_bubble(selected_countries):
 # ═══════════════════════════════════════════════════════════════
 # CELL 9 — Run
 # ═══════════════════════════════════════════════════════════════
+import webbrowser
+from threading import Timer
+import socket
+
+def open_browser():
+    ip = socket.gethostbyname(socket.gethostname())
+    print(f"Running on: http://{ip}:8050")
+    webbrowser.open_new(f"http://{ip}:8050")
+
 if __name__ == '__main__':
+    Timer(1.5, open_browser).start()
     app.run(host='0.0.0.0', port=8050, debug=False)
