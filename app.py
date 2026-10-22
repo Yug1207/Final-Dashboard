@@ -17,7 +17,8 @@ import dash_bootstrap_components as dbc
 # ═══════════════════════════════════════════════════════════════
 # CELL 3 — Load & Prepare Data  
 # ═══════════════════════════════════════════════════════════════
-FILE_PATH = "Main data for Assignment.xlsx"
+import os
+FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Main_data_for_Assignment.xlsx")
 _raw = pd.read_excel(FILE_PATH)
  
 
@@ -818,11 +819,9 @@ import webbrowser
 from threading import Timer
 import socket
 
-def open_browser():
-    ip = socket.gethostbyname(socket.gethostname())
-    print(f"Running on: http://{ip}:8050")
-    webbrowser.open_new(f"http://{ip}:8050")
+   
+dash_app = app
+app = app.server
 
 if __name__ == '__main__':
-    Timer(1.5, open_browser).start()
-    app.run(host='0.0.0.0', port=8050, debug=False)
+       dash_app.run(host='0.0.0.0', port=8050, debug=False)
